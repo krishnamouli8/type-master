@@ -1,27 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Timer, RefreshCw } from 'lucide-react';
 import Navbar from './Navbar';
-import { StatItemProps } from "./types";
+import { StatItemProps } from './types';
 
 const sampleText = `The quick brown fox jumps over the lazy dog. Programming is the art of telling another human what one wants the computer to do. The best way to predict the future is to invent it. Innovation distinguishes between a leader and a follower. Technology is best when it brings people together.`;
 
-const StatItem: React.FC<StatItemProps> = ({ value, label, isDarkMode }) => (
-  <div className={`p-4 rounded-2xl border transition-colors duration-300 ${
-    isDarkMode
-      ? 'bg-gray-800 border-gray-700'
-      : 'bg-white border-emerald-100'
-  }`}>
-    <div className={`text-2xl font-bold ${
-      isDarkMode ? 'text-emerald-400' : 'text-emerald-700'
-    }`}>{value}</div>
-    <div className={
-      isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
-    }>{label}</div>
+const StatItem: React.FC<StatItemProps> = ({ value, label }) => (
+  <div className="p-4 rounded-2xl border border-gray-700 bg-gray-800">
+    <div className="text-2xl font-bold text-amber-300">{value}</div>
+    <div className="text-amber-200">{label}</div>
   </div>
 );
 
 const TypingTest: React.FC = () => {
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [timeLimit, setTimeLimit] = useState<number>(60);
   const [timeRemaining, setTimeRemaining] = useState<number>(timeLimit);
   const [currentInput, setCurrentInput] = useState<string>('');
@@ -107,11 +98,11 @@ const TypingTest: React.FC = () => {
     return (
       <div className="relative font-mono">
         {sampleText.split('').map((char, index) => {
-          let color = isDarkMode ? 'text-gray-400' : 'text-gray-500';
+          let color = 'text-gray-500';
           if (index < currentInput.length) {
             color = currentInput[index] === char 
-              ? (isDarkMode ? 'text-emerald-400' : 'text-emerald-600')
-              : (isDarkMode ? 'text-rose-400' : 'text-rose-600');
+              ? 'text-amber-300'
+              : 'text-red-500'; // Changed from amber-700 to red-500 for errors
           }
           return (
             <span
@@ -120,9 +111,7 @@ const TypingTest: React.FC = () => {
             >
               {char}
               {index === cursorPosition && started && !finished && (
-                <span className={`absolute w-0.5 h-6 -mt-1 animate-pulse ${
-                  isDarkMode ? 'bg-emerald-400' : 'bg-emerald-600'
-                }`} />
+                <span className="absolute w-0.5 h-6 -mt-1 animate-pulse bg-amber-400" />
               )}
             </span>
           );
@@ -132,81 +121,63 @@ const TypingTest: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${
-      isDarkMode 
-        ? 'bg-gradient-to-br from-gray-900 to-gray-800' 
-        : 'bg-gradient-to-br from-emerald-50 to-rose-50'
-    }`}>
-      <Navbar 
-        isDarkMode={isDarkMode} 
-        toggleTheme={() => setIsDarkMode(!isDarkMode)} 
-      />
-      <div className="pt-24 pb-12 px-4">
-        <div className={`max-w-4xl mx-auto p-8 rounded-2xl shadow-xl space-y-8 transition-colors duration-300 ${
-          isDarkMode 
-            ? 'bg-gray-800/80 backdrop-blur-sm' 
-            : 'bg-white/80 backdrop-blur-sm'
-        }`}>
-          <div className="flex justify-between items-center gap-4">
-            {/* Reset Button */}
-            <button
-              onClick={resetTest}
-              className={`w-48 px-4 py-2 rounded-xl transition-colors duration-300 flex items-center justify-center gap-2 ${
-                isDarkMode
-                  ? 'bg-gray-700 text-emerald-400 hover:bg-gray-600'
-                  : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-              }`}
-            >
-              <RefreshCw size={16} /> Reset
-            </button>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
+      <Navbar />
+      <div className="pt-24 pb-12 px-4 min-h-screen flex flex-col">
+        {/* Adjusted button layout to bring them closer together */}
+        <div className="flex justify-center items-center gap-4 mb-8">
+          {/* Reset Button */}
+          <button
+            onClick={resetTest}
+            className="px-4 py-2 rounded-xl transition-colors duration-300 flex items-center justify-center gap-2 bg-gray-700 text-amber-300 hover:bg-gray-600"
+          >
+            <RefreshCw size={16} /> Reset
+          </button>
 
-            {/* Time Limit Dropdown */}
-            <select
-              className={`w-48 px-4 py-2 rounded-xl transition-colors duration-300 text-center appearance-none ${
-                isDarkMode
-                  ? 'bg-gray-700 text-emerald-400 border-gray-600 hover:border-gray-500'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:border-emerald-200'
-              }`}
-              value={timeLimit}
-              onChange={(e) => {
-                setTimeLimit(Number(e.target.value));
-                resetTest();
-              }}
-            >
-              <option value="30">30 seconds</option>
-              <option value="60">1 minute</option>
-              <option value="120">2 minutes</option>
-              <option value="300">5 minutes</option>
-            </select>
+          {/* Time Limit Dropdown */}
+          <select
+            className="px-4 py-2 rounded-xl transition-colors duration-300 text-center appearance-none bg-gray-700 text-amber-300 border-gray-600 hover:border-gray-500"
+            value={timeLimit}
+            onChange={(e) => {
+              setTimeLimit(Number(e.target.value));
+              resetTest();
+            }}
+          >
+            <option value="30">30 seconds</option>
+            <option value="60">1 minute</option>
+            <option value="120">2 minutes</option>
+            <option value="300">5 minutes</option>
+          </select>
 
-            {/* Timer Display */}
-            <div className={`w-48 flex items-center justify-center gap-2 text-lg font-semibold px-4 py-2 rounded-xl transition-colors duration-300 ${
-              isDarkMode
-                ? 'bg-gray-700 text-rose-400'
-                : 'bg-rose-50 text-rose-700'
-            }`}>
-              <Timer size={20} />
-              <span>{timeRemaining}s</span>
+          {/* Timer Display */}
+          <div className="flex items-center justify-center gap-2 text-lg font-semibold px-4 py-2 rounded-xl transition-colors duration-300 bg-gray-700 text-amber-300">
+            <Timer size={20} />
+            <span>{timeRemaining}s</span>
+          </div>
+        </div>
+
+        {/* Main content area - conditionally render typing or results */}
+        <div className="flex-1 flex flex-col items-center justify-center">
+          {!finished ? (
+            <div className="w-full max-w-4xl">
+              <div className="mb-6 text-lg leading-relaxed">
+                {renderText()}
+              </div>
+              
+              <textarea
+                className="w-full p-6 rounded-2xl outline-none transition-all duration-300 bg-gray-900/80 border-gray-700 focus:border-gray-600 focus:ring-2 focus:ring-gray-700 text-amber-200"
+                value={currentInput}
+                onChange={handleInput}
+                placeholder="Start typing..."
+                disabled={finished}
+                rows={4}
+              />
             </div>
-          </div>
-
-          <div className={`relative p-6 rounded-2xl text-lg leading-relaxed shadow-sm transition-colors duration-300 ${
-            isDarkMode
-              ? 'bg-gray-900 border-gray-700'
-              : 'bg-white border-emerald-100'
-          }`}>
-            {renderText()}
-          </div>
-
-          {finished ? (
-            <div className={`text-center p-8 rounded-2xl border animate-fade-in transition-colors duration-300 ${
-              isDarkMode
-                ? 'bg-gray-900/50 border-gray-700'
-                : 'bg-emerald-50/50 border-emerald-100'
-            }`}>
-              <h2 className={`text-3xl font-bold mb-6 ${
-                isDarkMode ? 'text-emerald-400' : 'text-emerald-800'
-              }`}>Time's Up!</h2>
+          ) : (
+            <div 
+              className="text-center p-8 rounded-2xl border transition-opacity duration-1000 opacity-100 bg-gray-900/50 border-gray-700 w-full max-w-4xl"
+            >
+              <h2 className="text-3xl font-bold mb-6 text-amber-300">Time's Up!</h2>
               <div className="grid grid-cols-3 gap-6">
                 {[
                   { value: wordCount, label: 'Words Per Minute' },
@@ -217,40 +188,9 @@ const TypingTest: React.FC = () => {
                     key={index}
                     value={stat.value}
                     label={stat.label}
-                    isDarkMode={isDarkMode}
                   />
                 ))}
               </div>
-            </div>
-          ) : (
-            <textarea
-              className={`w-full p-6 rounded-2xl outline-none transition-all duration-300 ${
-                isDarkMode
-                  ? 'bg-gray-900/80 border-gray-700 focus:border-gray-600 focus:ring-2 focus:ring-gray-700 text-gray-300'
-                  : 'bg-white/80 border-emerald-100 focus:border-emerald-200 focus:ring-2 focus:ring-emerald-100 text-gray-800'
-              }`}
-              value={currentInput}
-              onChange={handleInput}
-              placeholder="Start typing..."
-              disabled={finished}
-              rows={4}
-            />
-          )}
-
-          {!finished && started && (
-            <div className="grid grid-cols-3 gap-6 opacity-50">
-              {[
-                { value: wordCount, label: 'WPM' },
-                { value: `${accuracy.toFixed(1)}%`, label: 'Accuracy' },
-                { value: totalErrors, label: 'Errors' }
-              ].map((stat, index) => (
-                <StatItem
-                  key={index}
-                  value={stat.value}
-                  label={stat.label}
-                  isDarkMode={isDarkMode}
-                />
-              ))}
             </div>
           )}
         </div>

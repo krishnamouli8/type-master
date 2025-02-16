@@ -6,5 +6,4 @@ export interface NavbarProps {
 export interface StatItemProps {
     value: string | number;
     label: string;
-    isDarkMode: boolean;
 }
