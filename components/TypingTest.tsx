@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Timer, RefreshCw } from 'lucide-react';
 import Navbar from './Navbar';
 import { StatItemProps } from './types';
@@ -13,8 +13,8 @@ const StatItem: React.FC<StatItemProps> = ({ value, label }) => (
 );
 
 const TypingTest: React.FC = () => {
-  const [timeLimit, setTimeLimit] = useState<number>(60);
-  const [timeRemaining, setTimeRemaining] = useState<number>(timeLimit);
+  const [timeLimit, setTimeLimit] = useState<number>(30); // Default to 30 seconds
+  const [timeRemaining, setTimeRemaining] = useState<number>(30);
   const [currentInput, setCurrentInput] = useState<string>('');
   const [wordCount, setWordCount] = useState<number>(0);
   const [accuracy, setAccuracy] = useState<number>(100);
@@ -24,8 +24,24 @@ const TypingTest: React.FC = () => {
   const [totalKeystrokes, setTotalKeystrokes] = useState<number>(0);
   const [totalErrors, setTotalErrors] = useState<number>(0);
   const [cursorPosition, setCursorPosition] = useState<number>(0);
+  const [selectedTimeOption, setSelectedTimeOption] = useState<number>(0); // Default to first option (30s)
+  
+  const sliderRef = useRef<HTMLDivElement>(null);
+  
+  const timeOptions = [
+    { value: 30, label: '30s' },
+    { value: 60, label: '1m' },
+    { value: 120, label: '2m' },
+    { value: 300, label: '5m' }
+  ];
 
   const resetTest = useCallback(() => {
+    // Reset to default state (30 seconds)
+    setSelectedTimeOption(0);
+    setTimeLimit(30);
+    setTimeRemaining(30);
+    
+    // Reset other state
     setCurrentInput('');
     setWordCount(0);
     setAccuracy(100);
@@ -33,9 +49,13 @@ const TypingTest: React.FC = () => {
     setTotalErrors(0);
     setStarted(false);
     setFinished(false);
-    setTimeRemaining(timeLimit);
     setTotalKeystrokes(0);
     setCursorPosition(0);
+  }, []);
+
+  useEffect(() => {
+    // Update timeRemaining when timeLimit changes
+    setTimeRemaining(timeLimit);
   }, [timeLimit]);
 
   useEffect(() => {
@@ -55,6 +75,36 @@ const TypingTest: React.FC = () => {
     }
     return () => clearInterval(timer);
   }, [started, timeRemaining]);
+  
+  // Effect to update the slider position
+  useEffect(() => {
+    if (sliderRef.current) {
+      const width = 100 / timeOptions.length;
+      sliderRef.current.style.left = `${selectedTimeOption * width}%`;
+      sliderRef.current.style.width = `${width}%`;
+    }
+  }, [selectedTimeOption]);
+
+  const handleSelectTimeOption = (index: number) => {
+    setSelectedTimeOption(index);
+    setTimeLimit(timeOptions[index].value);
+    if (started) {
+      // If test is running, reset it with the new time
+      setCurrentInput('');
+      setWordCount(0);
+      setAccuracy(100);
+      setErrors(0);
+      setTotalErrors(0);
+      setStarted(false);
+      setFinished(false);
+      setTimeRemaining(timeOptions[index].value);
+      setTotalKeystrokes(0);
+      setCursorPosition(0);
+    } else {
+      // If test hasn't started, just update the time
+      setTimeRemaining(timeOptions[index].value);
+    }
+  };
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const inputValue = e.target.value;
@@ -102,7 +152,7 @@ const TypingTest: React.FC = () => {
           if (index < currentInput.length) {
             color = currentInput[index] === char 
               ? 'text-amber-300'
-              : 'text-red-500'; // Changed from amber-700 to red-500 for errors
+              : 'text-red-500';
           }
           return (
             <span
@@ -124,39 +174,54 @@ const TypingTest: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800">
       <Navbar />
       <div className="pt-24 pb-12 px-4 min-h-screen flex flex-col">
-        {/* Adjusted button layout to bring them closer together */}
-        <div className="flex justify-center items-center gap-4 mb-8">
+        {/* Controls container */}
+        <div className="flex justify-center items-center gap-6 mb-8">
           {/* Reset Button */}
           <button
             onClick={resetTest}
-            className="px-4 py-2 rounded-xl transition-colors duration-300 flex items-center justify-center gap-2 bg-gray-700 text-amber-300 hover:bg-gray-600"
+            className="w-24 h-12 px-4 rounded-xl transition-colors duration-300 flex items-center justify-center gap-2 bg-gray-700 text-amber-300 hover:bg-gray-600"
           >
             <RefreshCw size={16} /> Reset
           </button>
 
-          {/* Time Limit Dropdown */}
-          <select
-            className="px-4 py-2 rounded-xl transition-colors duration-300 text-center appearance-none bg-gray-700 text-amber-300 border-gray-600 hover:border-gray-500"
-            value={timeLimit}
-            onChange={(e) => {
-              setTimeLimit(Number(e.target.value));
-              resetTest();
-            }}
-          >
-            <option value="30">30 seconds</option>
-            <option value="60">1 minute</option>
-            <option value="120">2 minutes</option>
-            <option value="300">5 minutes</option>
-          </select>
+          {/* Custom Time Selector Container with animation */}
+          <div className="relative h-12 rounded-xl overflow-hidden border border-amber-200/30 shadow-[0_0_15px_rgba(255,215,0,0.15)] bg-gray-800/50">
+            {/* Animated background slider */}
+            <div
+              ref={sliderRef}
+              className="absolute top-0 h-full bg-amber-500/20 transition-all duration-300 ease-in-out"
+              style={{ 
+                left: `${(selectedTimeOption * 100) / timeOptions.length}%`,
+                width: `${100 / timeOptions.length}%`
+              }}
+            ></div>
+            
+            {/* Time options */}
+            <div className="flex h-full">
+              {timeOptions.map((option, index) => (
+                <button
+                  key={option.value}
+                  onClick={() => handleSelectTimeOption(index)}
+                  className={`relative z-10 w-24 h-full flex items-center justify-center transition-colors duration-300 ${
+                    selectedTimeOption === index
+                      ? 'text-amber-300 font-medium'
+                      : 'text-gray-300 hover:text-amber-200'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Timer Display */}
-          <div className="flex items-center justify-center gap-2 text-lg font-semibold px-4 py-2 rounded-xl transition-colors duration-300 bg-gray-700 text-amber-300">
-            <Timer size={20} />
-            <span>{timeRemaining}s</span>
+          <div className="w-24 h-12 flex items-center justify-center gap-2 px-4 rounded-xl bg-gray-700 text-amber-300">
+            <Timer size={18} />
+            <span className="text-lg font-semibold">{timeRemaining}s</span>
           </div>
         </div>
 
-        {/* Main content area - conditionally render typing or results */}
+        {/* Main content area */}
         <div className="flex-1 flex flex-col items-center justify-center">
           {!finished ? (
             <div className="w-full max-w-4xl">
