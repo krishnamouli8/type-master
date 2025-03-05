@@ -7,7 +7,11 @@ const commonWords: string[] = [
   'play', 'home', 'see', 'if', 'think', 'run', 'might', 'between', 'must', 'in',
   'also', 'turn', 'little', 'become', 'out', 'few', 'between', 'off', 'group',
   'need', 'day', 'by', 'write', 'however', 'of', 'right', 'system', 'fact', 'now',
-  'end', 'much', 'there', 'want', 'same', 'go', 'it', 'program', 'that'
+  'end', 'much', 'there', 'want', 'same', 'go', 'it', 'program', 'that', 'small',
+  'part', 'begin', 'present', 'around', 'same', 'course', 'such', 'help', 'each', 'write',
+  'of', 'they', 'large', 'eye', 'run', 'thing', 'can', 'how', 'take', 'it', 'write', 
+  'mean', 'child', 'each', 'early', 'public', 'only', 'part', 'end', 'general', 'such',
+  'new', 'good', 'become', 'through'
 ];
 
 const StatItem: React.FC<StatItemProps> = ({ value, label }) => (
@@ -29,9 +33,13 @@ const TypingTest: React.FC = () => {
   const [totalErrors, setTotalErrors] = useState<number>(0);
   const [selectedTimeOption, setSelectedTimeOption] = useState<number>(1);
   const [text, setText] = useState<string>('');
+  const [activeWordIndex, setActiveWordIndex] = useState<number>(0);
+  const [typedWords, setTypedWords] = useState<string[]>([]);
+  const [currentLineIndex, setCurrentLineIndex] = useState<number>(0);
   
   const textDisplayRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const activeWordRef = useRef<HTMLSpanElement>(null);
   
   const timeOptions: TimeOption[] = [
     { value: 15, label: '15s' },
@@ -40,10 +48,15 @@ const TypingTest: React.FC = () => {
     { value: 120, label: '120s' }
   ];
 
-  // Generate random text
+  // Define words per line constant
+  const WORDS_PER_LINE = 11;
+
+  // Generate random text from wordlist
   const generateRandomText = useCallback((): string => {
+    // Shuffle the array to get random words
     const shuffled = [...commonWords].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, 75).join(' ');
+    // Take a subset to ensure we get different words each time
+    return shuffled.slice(0, 100).join(' ');
   }, []);
 
   useEffect(() => {
@@ -93,7 +106,8 @@ const TypingTest: React.FC = () => {
   }, [finished]);
 
   const resetTest = (): void => {
-    setText(generateRandomText());
+    const newText = generateRandomText();
+    setText(newText);
     setCurrentInput('');
     setWordCount(0);
     setAccuracy(100);
@@ -102,6 +116,9 @@ const TypingTest: React.FC = () => {
     setFinished(false);
     setTimeRemaining(timeLimit);
     setTotalKeystrokes(0);
+    setActiveWordIndex(0);
+    setTypedWords([]);
+    setCurrentLineIndex(0);
     
     if (inputRef.current) {
       inputRef.current.focus();
@@ -114,37 +131,75 @@ const TypingTest: React.FC = () => {
     resetTest();
   };
 
+  // Count completed words (correctly typed)
+  const countCorrectWords = (): number => {
+    if (typedWords.length === 0) return 0;
+    
+    const textWords = text.split(' ');
+    let correctCount = 0;
+    
+    for (let i = 0; i < typedWords.length; i++) {
+      if (i < textWords.length && typedWords[i] === textWords[i]) {
+        correctCount++;
+      }
+    }
+    
+    return correctCount;
+  };
+
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
     const inputValue = e.target.value;
-    const prevInput = currentInput;
+    const textWords = text.split(' ');
+    
+    // Ignore space at beginning when no input
+    if (currentInput === '' && inputValue === ' ') {
+      return;
+    }
     
     if (!started && inputValue.length > 0) {
       setStarted(true);
     }
 
+    // Handle space key (completing a word)
+    if (inputValue.endsWith(' ') && currentInput !== '') {
+      const completedWord = currentInput.trim();
+      setTypedWords([...typedWords, completedWord]);
+      const nextWordIndex = activeWordIndex + 1;
+      setActiveWordIndex(nextWordIndex);
+      setCurrentInput('');
+      
+      // Calculate errors
+      const nextTotalErrors = [...typedWords, completedWord].reduce((count, word, idx) => {
+        return count + (word !== textWords[idx] ? 1 : 0);
+      }, 0);
+      
+      setTotalErrors(nextTotalErrors);
+      
+      // Recalculate accuracy
+      const nextAccuracy = nextWordIndex > 0 
+        ? (((nextWordIndex) - nextTotalErrors) / (nextWordIndex)) * 100
+        : 100;
+      setAccuracy(Math.max(0, Math.min(100, nextAccuracy)));
+      
+      // Calculate WPM
+      const correctWordCount = countCorrectWords() + (completedWord === textWords[activeWordIndex] ? 1 : 0);
+      const minutes = (timeLimit - timeRemaining) / 60;
+      if (minutes > 0) {
+        setWordCount(Math.round(correctWordCount / minutes));
+      }
+      
+      // Update line index if needed
+      const nextLine = Math.floor(nextWordIndex / WORDS_PER_LINE);
+      if (nextLine > currentLineIndex) {
+        setCurrentLineIndex(nextLine);
+      }
+      
+      return;
+    }
+    
+    // Update current input for the active word
     setCurrentInput(inputValue);
     setTotalKeystrokes((prev) => prev + 1);
-
-    // Track errors
-    if (inputValue.length > prevInput.length) {
-      const newChar = inputValue[inputValue.length - 1];
-      const expectedChar = text[inputValue.length - 1];
-      if (newChar !== expectedChar) {
-        setTotalErrors(prev => prev + 1);
-      }
-    }
-
-    const accuracyPercentage = totalKeystrokes > 0 
-      ? ((totalKeystrokes - totalErrors) / totalKeystrokes) * 100
-      : 100;
-    setAccuracy(Math.max(0, Math.min(100, accuracyPercentage)));
-
-    // Calculate WPM based on characters typed (1 word = 5 characters)
-    const typedWords = inputValue.length / 5;
-    const minutes = (timeLimit - timeRemaining) / 60;
-    if (minutes > 0) {
-      setWordCount(Math.round(typedWords / minutes));
-    }
   };
 
   // Handle keyboard shortcuts
@@ -160,6 +215,127 @@ const TypingTest: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Get word status class
+  const getWordClass = (wordIndex: number, isActive: boolean): string => {
+    // Base classes
+    let classes = `word word-${wordIndex} inline-block px-1 `;
+    
+    // Not yet reached
+    if (wordIndex > activeWordIndex) {
+      classes += 'text-[#646669]';
+      return classes;
+    }
+    
+    // Active word
+    if (isActive) {
+      classes += 'active bg-[#2c2e31] ';
+      return classes;
+    }
+    
+    // Already typed word
+    if (wordIndex < typedWords.length) {
+      const isCorrect = typedWords[wordIndex] === text.split(' ')[wordIndex];
+      classes += isCorrect ? 'text-[#9cdb43]' : 'text-[#ca4754]';
+    }
+    
+    return classes;
+  };
+
+  // Render text with three-line view
+  const renderText = () => {
+    const textWords = text.split(' ');
+    const currentLineNum = Math.floor(activeWordIndex / WORDS_PER_LINE);
+    
+    // Calculate which three lines to show
+    let linesToShow = [];
+    
+    // Determine which lines to show based on current progress
+    if (currentLineNum === 0) {
+      // Starting position: just show the first 3 lines
+      linesToShow = [0, 1, 2];
+    } else {
+      // Normal position: show previous, current, and next line
+      linesToShow = [currentLineNum - 1, currentLineNum, currentLineNum + 1];
+    }
+    
+    return (
+      <div className="flex flex-col items-center justify-center space-y-8 w-full transition-all duration-300">
+        {linesToShow.map((lineNum, idx) => {
+          // Get words for this line
+          const startWordIndex = lineNum * WORDS_PER_LINE;
+          const lineWords = textWords.slice(startWordIndex, startWordIndex + WORDS_PER_LINE);
+          
+          // Skip if no words for this line
+          if (lineWords.length === 0) return null;
+          
+          // Determine line status
+          const isCurrentLine = lineNum === currentLineNum;
+          const isPreviousLine = lineNum < currentLineNum;
+          const isNextLine = lineNum > currentLineNum;
+          
+          // Set line style based on its status
+          let lineClass = "flex flex-wrap space-x-1 h-12 w-full transition-opacity duration-300 ";
+          
+          if (isPreviousLine) {
+            lineClass += "text-opacity-70 "; // Dimmed for completed line
+          } else if (isNextLine) {
+            lineClass += "text-opacity-50 "; // More dimmed for future line
+          }
+          
+          return (
+            <div key={lineNum} className={lineClass}>
+              {lineWords.map((word, idx) => {
+                const wordIndex = startWordIndex + idx;
+                const isActiveWord = wordIndex === activeWordIndex;
+                
+                // For standard words that aren't active
+                if (!isActiveWord) {
+                  return (
+                    <span key={wordIndex} className={getWordClass(wordIndex, false)}>
+                      {word}
+                    </span>
+                  );
+                }
+                
+                // For the active word, render with character highlighting
+                return (
+                  <span 
+                    key={wordIndex} 
+                    ref={activeWordRef}
+                    className={getWordClass(wordIndex, true)}
+                  >
+                    {word.split('').map((char, charIndex) => {
+                      let charClass = 'text-[#646669]'; // Default
+                      
+                      if (charIndex < currentInput.length) {
+                        charClass = currentInput[charIndex] === char 
+                          ? 'text-[#9cdb43]'  // Correct character (green)
+                          : 'text-[#ca4754]'; // Incorrect character (red)
+                      }
+                      
+                      return (
+                        <span key={charIndex} className={charClass}>
+                          {char}
+                        </span>
+                      );
+                    })}
+                    
+                    {/* Extra chars typed beyond word length */}
+                    {currentInput.length > word.length && (
+                      <span className="text-[#ca4754]">
+                        {currentInput.substring(word.length)}
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#323437] text-[#646669]">
@@ -189,37 +365,12 @@ const TypingTest: React.FC = () => {
 
       {/* Main typing area */}
       {!finished ? (
-        <div className="max-w-3xl mx-auto mt-32 px-4">
+        <div className="max-w-6xl mx-auto mt-24 px-4">
           <div 
             ref={textDisplayRef}
-            className="relative mb-8 font-mono text-xl leading-relaxed h-32 overflow-hidden cursor-text"
+            className="relative font-mono text-3xl font-bold leading-relaxed min-h-64 cursor-text bg-[#323437] p-8 rounded flex flex-col items-center justify-center"
           >
-            {text.split('').map((char, index) => {
-              let color = 'text-[#646669]';
-              if (index < currentInput.length) {
-                color = currentInput[index] === char 
-                  ? 'text-[#d1d0c5]'
-                  : 'text-[#ca4754]';
-              }
-              
-              return (
-                <span key={index} className={color}>
-                  {char}
-                  {index === currentInput.length - 1 && (
-                    <span className="absolute inline-block w-0.5 h-6 bg-[#646669] animate-pulse" style={{ 
-                      transform: 'translateY(-0.1em)'
-                    }}/>
-                  )}
-                </span>
-              );
-            })}
-            
-            {/* Show cursor at the beginning if no input */}
-            {currentInput.length === 0 && !finished && (
-              <span className="absolute inline-block w-0.5 h-6 bg-[#646669] animate-pulse" style={{ 
-                transform: 'translateY(-0.1em)'
-              }}/>
-            )}
+            {renderText()}
             
             {/* Hidden input that captures keystrokes */}
             <textarea
